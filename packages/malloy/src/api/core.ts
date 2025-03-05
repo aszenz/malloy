@@ -21,6 +21,11 @@ import {
 import {modelDefToModelInfo} from '../to_stable';
 import {sqlKey} from '../model/sql_block';
 import {SQLSourceRequest} from '../lang/translate-response';
+import {
+  extractSourceDependenciesFromModel,
+  ExtractSourceDependenciesRequest,
+  ExtractSourceDependenciesResponse,
+} from '../extractSourceDeps';
 
 // TODO find where this should go...
 function tableKey(connectionName: string, tablePath: string): string {
@@ -242,14 +247,29 @@ export function compileQuery(
 }
 
 export function extractSourceDependencies(
-  request: Malloy.ExtractSourceDependenciesRequest
+  request: ExtractSourceDependenciesRequest
   // todo: maybe add CompiledModelState if we want a stateful endpoint for this
   // for now statefulness is not too important
-): Malloy.ExtractSourceDependenciesResponse {
+): ExtractSourceDependenciesResponse {
   // AR note: this is where what I'm interested in happens
-  const result = _statedCompileModel(newCompileModelState(request));
+  const state = newCompileModelState(request);
+  const compileModelResponse = _statedCompileModel(state);
 
-  return extractSource(result, request.name, request.model_url);
+  const logs = compileModelResponse.logs
+    ? mapLogs(compileModelResponse.logs, state.translator.sourceURL)
+    : undefined;
+
+  if (!compileModelResponse.modelDef || compileModelResponse.compilerNeeds) {
+    return {compiler_needs: compileModelResponse.compilerNeeds, logs};
+  }
+
+  return {
+    logs,
+    sql_sources: extractSourceDependenciesFromModel(
+      compileModelResponse.modelDef,
+      request.source_name
+    ),
+  };
 }
 
 export interface CompileModelState {
