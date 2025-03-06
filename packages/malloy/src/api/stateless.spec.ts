@@ -462,26 +462,25 @@ ORDER BY 1 asc NULLS LAST
     });
     test('source with a sql query dependency', () => {
       const sql = 'SELECT carrier FROM flights';
+      const carrierSQL: Malloy.SQLQuery = {
+        connection_name: 'connection',
+        sql,
+        schema: {
+          fields: [
+            {
+              kind: 'dimension',
+              name: 'carrier',
+              type: {kind: 'string_type'},
+            },
+          ],
+        },
+      };
 
       const result = extractSourceDependencies({
         model_url: 'file://test.malloy',
         source_name: 'sql_source',
         compiler_needs: {
-          sql_schemas: [
-            {
-              connection_name: 'connection',
-              sql,
-              schema: {
-                fields: [
-                  {
-                    kind: 'dimension',
-                    name: 'carrier',
-                    type: {kind: 'string_type'},
-                  },
-                ],
-              },
-            },
-          ],
+          sql_schemas: [carrierSQL],
           connections: [{name: 'connection', dialect: 'presto'}],
           files: [
             {
@@ -552,7 +551,87 @@ ORDER BY 1 asc NULLS LAST
         },
       });
     });
-    test('source with joins', () => {
+    test('source with joined query', () => {
+      const flightsTable: Malloy.SQLTable = {
+        connection_name: 'connection',
+        name: 'flights',
+        schema: {
+          fields: [
+            {
+              kind: 'dimension',
+              name: 'carrier',
+              type: {kind: 'string_type'},
+            },
+            {
+              kind: 'dimension',
+              name: 'origin',
+              type: {kind: 'string_type'},
+            },
+            {
+              kind: 'dimension',
+              name: 'destination',
+              type: {kind: 'string_type'},
+            },
+          ],
+        },
+      };
+
+      const sql = 'SELECT carrier, year_founded FROM carriers';
+      const carrierSQL: Malloy.SQLQuery = {
+        connection_name: 'connection',
+        sql,
+        schema: {
+          fields: [
+            {
+              kind: 'dimension',
+              name: 'carrier',
+              type: {kind: 'string_type'},
+            },
+            {
+              kind: 'dimension',
+              name: 'year_founded',
+              type: {kind: 'number_type'},
+            },
+          ],
+        },
+      };
+
+      const result = extractSourceDependencies({
+        model_url: 'file://test.malloy',
+        source_name: 'flights_with_carrier_dim',
+        compiler_needs: {
+          table_schemas: [flightsTable],
+          sql_schemas: [carrierSQL],
+          files: [
+            {
+              url: 'file://test.malloy',
+              contents: `
+                source: flights is connection.table('flights')
+                source: carriers is connection.sql('${sql}')
+
+                source: flights_with_carrier_dim is flights extend {
+                  join_many: carriers on carrier = carriers.carrier
+                }
+              `,
+            },
+          ],
+          connections: [{name: 'connection', dialect: 'presto'}],
+        },
+      });
+
+      const expected: Malloy.ExtractSourceDependenciesResponse = {
+        sql_sources: [
+          {
+            sql,
+            columns: [{name: 'carrier'}],
+            filters: [],
+          },
+        ],
+      };
+
+      expect(result).toMatchObject(expected);
+    });
+    test('source with joined table', () => {
       const flightsTable: Malloy.SQLTable = {
         connection_name: 'connection',
         name: 'flights',
@@ -595,7 +674,7 @@ ORDER BY 1 asc NULLS LAST
         },
       };
 
-      const _result = extractSourceDependencies({
+      const result = extractSourceDependencies({
         model_url: 'file://test.malloy',
         source_name: 'flights_with_carrier_dim',
         compiler_needs: {
@@ -616,6 +695,26 @@ ORDER BY 1 asc NULLS LAST
           connections: [{name: 'connection', dialect: 'presto'}],
         },
       });
+
+      const expected: Malloy.ExtractSourceDependenciesResponse = {
+        sql_sources: [
+          {
+            name: 'flights',
+            columns: [
+              {name: 'carrier'},
+              {name: 'origin'},
+              {name: 'destination'},
+            ],
+            filters: [],
+          },
+          {
+            name: 'carriers',
+            columns: [{name: 'carrier'}, {name: 'year_founded'}],
+          },
+        ],
+      };
+
+      expect(result).toMatchObject(expected);
     });
     test('source with pipeline', () => {
       const flightsTable: Malloy.SQLTable = {
