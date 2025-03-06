@@ -410,7 +410,6 @@ export type SQLTable = {
   schema?: Schema;
   connection_name: string;
 };
-export type SQLSource = SQLQuery | SQLTable;
 export type Schema = {
   fields: Array<FieldInfo>;
 };

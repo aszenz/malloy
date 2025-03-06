@@ -432,7 +432,12 @@ ORDER BY 1 asc NULLS LAST
             {
               url: 'file://test.malloy',
               contents: `
-                source: flights is connection.table('flights')
+                source: flights is connection.table('flights') extend {
+                  dimension:
+                    start is origin
+                  measure:
+                    carrier_count is carrier.count()
+                }
               `,
             },
           ],
@@ -440,20 +445,32 @@ ORDER BY 1 asc NULLS LAST
         },
       });
       const expected: Malloy.ExtractSourceDependenciesResponse = {
-        sql_sources: [flightsTable],
+        sql_sources: [
+          {
+            name: 'flights',
+            columns: [
+              {name: 'carrier'},
+              {name: 'origin'},
+              {name: 'destination'},
+            ],
+            filters: [],
+          },
+        ],
       };
 
       expect(result).toMatchObject(expected);
     });
     test('source with a sql query dependency', () => {
-      const _result = extractSourceDependencies({
+      const sql = 'SELECT carrier FROM flights';
+
+      const result = extractSourceDependencies({
         model_url: 'file://test.malloy',
         source_name: 'sql_source',
         compiler_needs: {
           sql_schemas: [
             {
               connection_name: 'connection',
-              sql: 'SELECT carrier FROM flights',
+              sql,
               schema: {
                 fields: [
                   {
@@ -476,11 +493,18 @@ ORDER BY 1 asc NULLS LAST
           ],
         },
       });
-      // const expected: Malloy.ExtractSourceDependenciesResponse = {
-      //   sql_sources: [{sql, connection_name: 'connection'}],
-      // };
 
-      // expect(result).toMatchObject(expected);
+      const expected: Malloy.ExtractSourceDependenciesResponse = {
+        sql_sources: [
+          {
+            sql,
+            columns: [{name: 'carrier'}],
+            filters: [],
+          },
+        ],
+      };
+
+      expect(result).toMatchObject(expected);
     });
     test('source extends another source', () => {
       const flightsTable: Malloy.SQLTable = {
@@ -573,7 +597,7 @@ ORDER BY 1 asc NULLS LAST
 
       const _result = extractSourceDependencies({
         model_url: 'file://test.malloy',
-        source_name: 'flights',
+        source_name: 'flights_with_carrier_dim',
         compiler_needs: {
           table_schemas: [flightsTable, carriersTable],
           files: [
@@ -666,7 +690,7 @@ ORDER BY 1 asc NULLS LAST
 
       const _result = extractSourceDependencies({
         model_url: 'file://test.malloy',
-        source_name: 'derived',
+        source_name: 'flights',
         compiler_needs: {
           table_schemas: [flightsTable],
           files: [
