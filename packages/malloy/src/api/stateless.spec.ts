@@ -615,13 +615,18 @@ ORDER BY 1 asc NULLS LAST
               name: 'destination',
               type: {kind: 'string_type'},
             },
+            {
+              kind: 'dimension',
+              name: 'other',
+              type: {kind: 'string_type'},
+            },
           ],
         },
       };
 
       const result = extractSourceDependencies({
         model_url: 'file://test.malloy',
-        source_name: 'derived3',
+        source_name: 'derived',
         compiler_needs: {
           table_schemas: [flightsTable],
           files: [
@@ -630,16 +635,13 @@ ORDER BY 1 asc NULLS LAST
               contents: `
                 source: flights is connection.table('flights')
 
-                source: derived is flights -> {select: origin, destination} extend {
-                  dimension: trip is concat(origin, '-', destination)
-                }
+                source: derived is flights extend {
+                where: carrier = 'UA'} -> {group_by: start is origin \n where: destination = 'here' }
 
-                source: derived2 is flights -> {group_by: origin}
-
-                source: derived3 is flights -> {select: start is origin, destination \n where: carrier = 'UA'} -> {select: start, destination } extend {
+                source: derived2 is flights extend {
+                where: carrier = 'UA'} -> {select: start is origin, destination} -> {select: start, destination } extend {
                   except: destination
                 }
-
               `,
             },
           ],
@@ -651,7 +653,11 @@ ORDER BY 1 asc NULLS LAST
         sql_sources: [
           {
             name: 'flights',
-            columns: [{name: 'origin'}, {name: 'destination'}],
+            columns: [
+              {name: 'origin'},
+              {name: 'destination'},
+              {name: 'carrier'},
+            ],
             filters: [],
           },
         ],
@@ -712,6 +718,8 @@ ORDER BY 1 asc NULLS LAST
           connections: [{name: 'connection', dialect: 'presto'}],
         },
       });
+
+      expect(1).toEqual(2);
     });
   });
 });
