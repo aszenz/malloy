@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {StringClause} from '@malloydata/malloy-filter';
-import {Dialect} from '../dialect';
+import type {StringClause} from '@malloydata/malloy-filter';
+import type {Dialect} from '../dialect';
 
 function likeSafe(v: string) {
   return v.replace(/([_%])g/, '\\$1');

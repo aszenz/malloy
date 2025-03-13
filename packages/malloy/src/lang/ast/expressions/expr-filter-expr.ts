@@ -5,11 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {BinaryMalloyOperator} from '../types/binary_operators';
-import {ExprValue, computedExprValue} from '../types/expr-value';
+import type {BinaryMalloyOperator} from '../types/binary_operators';
+import type {ExprValue} from '../types/expr-value';
+import {computedExprValue} from '../types/expr-value';
 import {ExpressionDef} from '../types/expression-def';
-import {FieldSpace} from '../types/field-space';
-import {FilterMatchExpr} from '../../../model';
+import type {FieldSpace} from '../types/field-space';
+import type {FilterMatchExpr} from '../../../model';
 import {StringFilterExpression} from '@malloydata/malloy-filter';
 
 export class ExprFilterExpression extends ExpressionDef {
